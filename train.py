@@ -33,6 +33,7 @@ mlp_lr = 1e-3
 optimizer = torch.optim.SGD(model.parameters(), lr=mlp_lr, momentum = 0.9)
 #optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
 
+
 bs = 32
 
 # define print-to-console rate
@@ -99,6 +100,7 @@ for epoch in range(start_epoch, num_epochs):
     epoch_total_loss = 0.
     
     for i, (img_path, img, targets) in enumerate(train_dataloader):
+
         gt_orient, gt_origin, gt_cls_map, gt_reg_map = targets       
     
         #img = img.to(device)
@@ -193,7 +195,9 @@ for epoch in range(start_epoch, num_epochs):
     model.eval()
     for i, (img_path, img, targets) in enumerate(val_dataloader):
         with torch.no_grad():
+
             gt_orient, gt_origin, gt_cls_map, gt_reg_map = targets
+
             gt_orient = gt_orient.to(device)
             gt_origin = gt_origin.to(device)
             gt_cls_map = gt_cls_map.to(device)

@@ -7,7 +7,8 @@ import time
 import math
 import argparse
 from easydict import EasyDict
-import sys
+import 
+
 
 import torch
 import torch.nn as nn
@@ -37,6 +38,7 @@ dataset_id = sys.argv[2]
 #checkpoint_dir = 'ppn_checkpoints'
 #checkpoint_dir = 'ppn_checkpoints/submission_chks'
 
+
 #eval_dataloader = val_aug_dataloader
 #eval_dataloader = test4_dataloader
 #eval_dataloader = zhao_test_dl
@@ -64,7 +66,9 @@ for eval_thresh in [2.8, 0.5]:
 #    eval_thresh = eval_thresh / 56
     
     #checkpoint_name = f'ppn_chk_epoch_{epoch:04}.pth'
+    
     checkpoint_name = f'ppn_chk_epoch_0001.pth' ##### TEST #####
+
     checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name)
 
     model = BarValueExtractor()
