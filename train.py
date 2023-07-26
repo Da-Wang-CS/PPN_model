@@ -7,6 +7,7 @@ import time
 import math
 import argparse
 from easydict import EasyDict
+import sys
 
 import torch
 import torch.nn as nn
@@ -20,6 +21,8 @@ from model.utils.metrics import *
 from model.utils.map_conversions import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if device == torch.device("cpu"):
+    raise Warning("Traning without GPU")
 
 # Initiate model
 model = BarValueExtractor()
@@ -30,22 +33,28 @@ mlp_lr = 1e-3
 optimizer = torch.optim.SGD(model.parameters(), lr=mlp_lr, momentum = 0.9)
 #optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
 
-bs = 1
+bs = 32
 
 # define print-to-console rate
 num_updates_per_epoch = 10
 update_steps = 1
 
 start_epoch = 0
-num_epochs = 50
+num_epochs = 1
+
+print(f"This training will have a batch size of {bs} for {num_epochs}")
 
 # detection and eval/error thresholds
 pnt_detect_thresh = 0.9
 cls_conf_thresh = 0.75
 eval_thresh = 1.5/56
 
-checkpoint_dir = 'checkpoints'
-dataset_id = 'generated_bars'
+if len(sys.argv) != 3:
+    print("USAGE: <dataset_id> <checkpoint_dir>")
+    exit(1)
+
+dataset_id = sys.argv[1]
+checkpoint_dir = sys.argv[2]
 
 if start_epoch:
     # load checkpoint
@@ -70,14 +79,14 @@ vlosses = []
 train_times = []
 vtimes = []
 
-barPs, barRs, barF1s, tickPs, tickRs, tickF1s, meanF1s = [], [], [], [], [], [], []
+barPs, barRs, barF1s, tickPs, tickRs, tickF1s, euPs, euRs, euF1s, edPs, edRs, edF1s, meanF1s = [], [], [], [], [], [], [], [], [], [], [], [], []
 
-# class weights: [None, bar, tick]
-class_weights = torch.tensor([0.05, 1., 1.]).to(device)
+# class weights: [None, bar, tick, errorup, errordown]
+class_weights = torch.tensor([0.05, 1., 1., 1., 1.]).to(device)
 
 
 train_dataloader, val_dataloader = get_dataloaders(dataset_id, bs)
-update_steps = len(train_dataloader.dataset) // (num_updates_per_epoch * bs)
+update_steps = len(train_dataloader.dataset) // (num_updates_per_epoch * bs) if len(train_dataloader.dataset) // (num_updates_per_epoch * bs) != 0 else 1
 
 print('start training')
 for epoch in range(start_epoch, num_epochs):
@@ -90,8 +99,8 @@ for epoch in range(start_epoch, num_epochs):
     epoch_total_loss = 0.
     
     for i, (img_path, img, targets) in enumerate(train_dataloader):
-        gt_orient, gt_origin, gt_cls_map, gt_reg_map, _, _ = targets
-                
+        gt_orient, gt_origin, gt_cls_map, gt_reg_map = targets       
+    
         #img = img.to(device)
         gt_orient = gt_orient.to(device)
         gt_origin = gt_origin.to(device)
@@ -101,7 +110,7 @@ for epoch in range(start_epoch, num_epochs):
         if epoch % 100 == 0 and i < 2:
 #            print('Checking model forward time on batch...', end='')
             mt = time.time()
-        orient_pred, origin_pred, bars, ticks, pts_cls_pred, pts_reg_pred = model(img)
+        orient_pred, origin_pred, pts_cls_pred, pts_reg_pred = model(img)
         if epoch % 100 == 0 and i < 2:
 #            print(f' done... ({time.time() - mt:0.1f} seconds)')
             pass
@@ -122,17 +131,17 @@ for epoch in range(start_epoch, num_epochs):
         pts_reg_loss = F.mse_loss(pred_reg_list, gt_reg_list)
         
         # 2021-11-06 add actual point loss (with nms)
-        gt_bars, gt_ticks = pts_map_to_lists_v2(gt_cls_map, gt_reg_map)
-        pred_bars, pred_ticks = get_pred_bars_ticks(pts_cls_pred, pts_reg_pred,
+        gt_bars, gt_ticks, gt_errorup, gt_errordown = pts_map_to_lists_v2(gt_cls_map, gt_reg_map)
+        pred_bars, pred_ticks, pred_errorup, pred_errordown = get_pred_bars_ticks(pts_cls_pred, pts_reg_pred,
 #                                                    pt_thresh = 0.99, conf_thresh = 0.7)
                                                     pnt_detect_thresh, cls_conf_thresh)
-        pred_bars, pred_ticks = nms(pred_bars, pred_ticks)
+        pred_bars, pred_ticks, pred_errorup, pred_errordown = nms(pred_bars, pred_ticks, pred_errorup, pred_errordown)
         pts_list_loss = 0.
         tick_align_loss = 0.
         for bim in range(len(pred_bars)):                         # per batch image
-            gbars, gticks = gt_bars[bim], gt_ticks[bim]
-            pbars, pticks = pred_bars[bim], pred_ticks[bim]
-            pts_list_loss += evaluate_pts_err(gbars, gticks, pbars, pticks, eval_thresh)
+            gbars, gticks, geu, ged = gt_bars[bim], gt_ticks[bim], gt_errorup[bim], gt_errordown[bim]
+            pbars, pticks, peu, ped = pred_bars[bim], pred_ticks[bim], pred_errorup[bim], pred_errordown[bim]
+            pts_list_loss += evaluate_pts_err(gbars, gticks, geu, ged, pbars, pticks, peu, ped, eval_thresh)
             tick_align_loss += sum([abs(t[0] - origin_pred[bim, 0]) for t in pticks])
         
         
@@ -177,19 +186,19 @@ for epoch in range(start_epoch, num_epochs):
     epoch_vpntreg_loss = 0.
     epoch_vtotal_loss = 0.
     
-    epoch_barP, epoch_barR, epoch_tickP, epoch_tickR = [], [], [], []
-    
+    epoch_barP, epoch_barR, epoch_tickP, epoch_tickR, epoch_euP, epoch_euR, epoch_edP, epoch_edR = [], [], [], [], [], [], [], []
+
     # evaluate model loss on val set
     t = time.time()
     model.eval()
     for i, (img_path, img, targets) in enumerate(val_dataloader):
         with torch.no_grad():
-            gt_orient, gt_origin, gt_cls_map, gt_reg_map, gt_bars, gt_ticks = targets
+            gt_orient, gt_origin, gt_cls_map, gt_reg_map = targets
             gt_orient = gt_orient.to(device)
             gt_origin = gt_origin.to(device)
             gt_cls_map = gt_cls_map.to(device)
             gt_reg_map = gt_reg_map.to(device)        
-            orient_pred, origin_pred, bars, ticks, pts_cls_pred, pts_reg_pred = model(img)
+            orient_pred, origin_pred, pts_cls_pred, pts_reg_pred = model(img)
             
             origin_loss = F.smooth_l1_loss(origin_pred, gt_origin)
             pts_cls_loss = F.cross_entropy(pts_cls_pred, gt_cls_map, weight=class_weights)
@@ -199,17 +208,17 @@ for epoch in range(start_epoch, num_epochs):
             pts_reg_loss = F.mse_loss(pred_reg_list, gt_reg_list)
             
             # add point list distance loss
-            gt_bars, gt_ticks = pts_map_to_lists_v2(gt_cls_map, gt_reg_map)
-            pred_bars, pred_ticks = get_pred_bars_ticks(pts_cls_pred, pts_reg_pred,
+            gt_bars, gt_ticks, gt_errorup, gt_errordown = pts_map_to_lists_v2(gt_cls_map, gt_reg_map)
+            pred_bars, pred_ticks, pred_errorup, pred_errordown = get_pred_bars_ticks(pts_cls_pred, pts_reg_pred,
 #                                                        pt_thresh = 0.99, conf_thresh = 0.7)
                                                         pnt_detect_thresh, cls_conf_thresh)
-            pred_bars, pred_ticks = nms(pred_bars, pred_ticks)
+            pred_bars, pred_ticks, pred_errorup, pred_errorup = nms(pred_bars, pred_ticks, pred_errorup, pred_errordown)
             pts_list_loss = 0.
             tick_align_loss = 0.
             for bim in range(len(pred_bars)):                         # per batch image
-                gbars, gticks = gt_bars[bim], gt_ticks[bim]
-                pbars, pticks = pred_bars[bim], pred_ticks[bim]
-                pts_list_loss += evaluate_pts_err(gbars, gticks, pbars, pticks, eval_thresh)
+                gbars, gticks, geu, ged = gt_bars[bim], gt_ticks[bim], gt_errorup[bim], gt_errordown[bim]
+                pbars, pticks, peu, ped = pred_bars[bim], pred_ticks[bim], pred_errorup[bim], pred_errordown[bim]
+                pts_list_loss += evaluate_pts_err(gbars, gticks, geu, ged, pbars, pticks, peu, ped, eval_thresh)
                 tick_align_loss += sum([abs(t[0] - origin_pred[bim, 0]) for t in pticks])
             
             vloss = origin_loss + pts_cls_loss + pts_reg_loss + \
@@ -231,13 +240,17 @@ for epoch in range(start_epoch, num_epochs):
     #            print(i, len(gt_bars), len(gt_ticks), len(pred_bars), len(pred_ticks))
                 for bim in range(len(pred_bars)):                         # batch image
     #                print('\t', bim)
-                    gbars, gticks = gt_bars[bim], gt_ticks[bim]
-                    pbars, pticks = pred_bars[bim], pred_ticks[bim]
-                    barP, barR, tickP, tickR = evaluate_pts(gbars, gticks, pbars, pticks, eval_thresh)
+                    gbars, gticks, geu, ged = gt_bars[bim], gt_ticks[bim], gt_errorup[bim], gt_errordown[bim]
+                    pbars, pticks, peu, ped = pred_bars[bim], pred_ticks[bim], pred_errorup[bim], pred_errordown[bim]
+                    barP, barR, tickP, tickR, euP, euR, edP, edR = evaluate_pts(gbars, gticks, geu, ged, pbars, pticks, peu, ped, eval_thresh)
                     epoch_barP.append(barP)
                     epoch_barR.append(barR)
                     epoch_tickP.append(tickP)
                     epoch_tickR.append(tickR)
+                    epoch_euP.append(euP)
+                    epoch_euR.append(euR)
+                    epoch_edP.append(edP)
+                    epoch_edR.append(edR)
     
     vorigin_losses.append(epoch_vorigin_loss)
     vpclass_losses.append(epoch_vpclass_loss)
@@ -249,26 +262,38 @@ for epoch in range(start_epoch, num_epochs):
         mean_barR = sum(epoch_barR) / len(epoch_barR)
         mean_tickP = sum(epoch_tickP) / len(epoch_tickP)
         mean_tickR = sum(epoch_tickR) / len(epoch_tickR)
+        mean_euP = sum(epoch_euP) / len(epoch_euP)
+        mean_euR = sum(epoch_euR) / len(epoch_euR)
+        mean_edP = sum(epoch_edP) / len(epoch_edP)
+        mean_edR = sum(epoch_edR) / len(epoch_edR)
         barPs.append(mean_barP)
         barRs.append(mean_barR)
         barF1s.append(f1(mean_barP, mean_barR))
         tickPs.append(mean_tickP)
         tickRs.append(mean_tickR)
         tickF1s.append(f1(mean_tickP, mean_tickR))
-        meanF1s.append((barF1s[-1] + tickF1s[-1]) / 2.)
+        euPs.append(mean_euP)
+        euRs.append(mean_euR)
+        euF1s.append(f1(mean_euP, mean_euR))
+        edPs.append(mean_edP)
+        edRs.append(mean_edR)
+        edF1s.append(f1(mean_edP, mean_edR))
+        meanF1s.append((barF1s[-1] + tickF1s[-1] + euF1s[-1] + edF1s[-1]) / 4.)
     
     vtime = time.time() - t
     print (f'ev: {vtime:0.1f}s; VL: {epoch_vtotal_loss:.3f}; ', end='')
     if (epoch + 1) % 1 == 0:
         print (f'bP: {mean_barP:.3f}, bR: {mean_barR:.3f}, tP: {mean_tickP:.3f}, ' +
-               f'tR: {mean_tickR:.3f}, bF1: {barF1s[-1]:.4f}, tF1: {tickF1s[-1]:.4f}, ' +
+               f'tR: {mean_tickR:.3f}, euP: {mean_euP:.3f}, euR: {mean_euR:.3f}, edP: {mean_edP:.3f}, edR: {mean_edR:.3f}, bF1: {barF1s[-1]:.4f}, tF1: {tickF1s[-1]:.4f}, ' +
+               f'euF1: {euF1s[-1]:.4f}, ' +
+               f'edF1: {edF1s[-1]:.4f}, ' +
                f'avgF1: {meanF1s[-1]:.4f}')
     else:
         print('')
     vtimes.append(vtime)
 
     # save model
-    if (epoch + 1) % 10 == 0:
+    if (epoch + 1) % 1 == 0:
         checkpoint_name = f'ppn_chk_epoch_{epoch+1:04}.pth'
         checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name)
 
@@ -281,4 +306,4 @@ for epoch in range(start_epoch, num_epochs):
 log_losses(start_epoch, num_epochs,
            origin_losses, pclass_losses, pntreg_losses, losses, train_times,
            vorigin_losses, vpclass_losses, vpntreg_losses, vlosses, vtimes,
-           barPs, barRs, barF1s, tickPs, tickRs, tickF1s, meanF1s)
+           barPs, barRs, barF1s, tickPs, tickRs, tickF1s, euPs, euRs, euF1s, edPs, edRs, edF1s, meanF1s)

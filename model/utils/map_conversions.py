@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-id_to_name = {0: 'None', 1: 'bar', 2: 'tick'}
-name_to_id = {'None': 0, 'bar': 1, 'tick': 2}
+id_to_name = {0: 'None', 1: 'bar', 2: 'tick', 3: 'errorup', 4: 'errordown'}
+name_to_id = {'None': 0, 'bar': 1, 'tick': 2, 'errorup': 3, 'errordown': 4}
 
 def score_points_list(gt_bars, gt_ticks, pred_bars, pred_ticks):
     pass
@@ -57,7 +57,9 @@ def pts_map_to_lists_v2(pts_cls_map, pts_reg_map):
     # seperate lists per batch image
     bars = [[] for im in range(pts_cls_map.shape[0])]
     ticks = [[] for im in range(pts_reg_map.shape[0])]
-    
+    errorup = [[] for im in range(pts_cls_map.shape[0])]
+    errordown = [[] for im in range(pts_cls_map.shape[0])]
+
     #classes = torch.argmax(pts_cls_map, 1)
     classes = pts_cls_map
     pts_im, pts_x, pts_y = torch.nonzero(classes, as_tuple=True)
@@ -78,8 +80,22 @@ def pts_map_to_lists_v2(pts_cls_map, pts_reg_map):
             bars[im].append((pos_x, pos_y))
         elif cls == name_to_id['tick']:
             ticks[im].append((pos_x, pos_y))
+        elif cls == name_to_id['errorup']:
+            errorup[im].append((pos_x, pos_y))
+        elif cls == name_to_id['errordown']:
+            errordown[im].append((pos_x, pos_y))
     
-    return bars, ticks
+    return bars, ticks, errorup, errordown
+
+
+
+
+
+#####!!!!! NOTE: DEPRECATED FUNCTIONS BELOW !!!!!#####
+
+
+
+
 
 # convert (56x56) map of point classes and regression values
 # to list of points of each class

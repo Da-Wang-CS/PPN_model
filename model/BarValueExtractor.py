@@ -47,8 +47,9 @@ class BarValueExtractor(nn.Module):
                             nn.Conv2d(256,256,3,padding=1),
                             nn.LeakyReLU())
         
-        # output 56x56 pixel map of point classes ['None','t','b'], and regression values (dx, dy)
-        self.pnt_class = nn.Conv2d(256, 3, 1, 1, 0)        
+        # output 56x56 pixel map of point classes ['None','t','b','eu','ed'], and regression values (dx, dy)
+        # self.pnt_class = nn.Conv2d(256, 3, 1, 1, 0)
+        self.pnt_class = nn.Conv2d(256, 5, 1, 1, 0)        
         self.pnt_reg = nn.Conv2d(256, 2, 1, 1, 0)
         
         self.drop_layer = nn.Dropout(p=0.5)
@@ -94,8 +95,8 @@ class BarValueExtractor(nn.Module):
         
         # TODO: conversion to points list may need adjustment for non-softmax-ed classes (e.g. some threshold?)
         # extact bar, tick predictions
-        bars = []
-        ticks = []
-#        bars, ticks = pts_map_to_lists(pts_cls_pred, pts_reg_pred)
-        
-        return orient_pred, origin_pred, bars, ticks, pts_cls_pred, pts_reg_pred
+        #bars = []
+        #ticks = []
+#       bars, ticks = pts_map_to_lists(pts_cls_pred, pts_reg_pred)
+
+        return orient_pred, origin_pred, pts_cls_pred, pts_reg_pred

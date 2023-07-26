@@ -1,31 +1,117 @@
 # Carlos X. Soto, csoto@bnl.gov, 2022
 
 import torch
-from torch.utils.data import DataLoader
+#from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
 import datetime
+from tqdm.auto import tqdm
+import itertools
 
 from model.Datasets import BarDataset, ImageOnlyDataset
 
 #checkpoint_dir = 'checkpoints'
 
-valid_datasets = ('augmented_bars', 'generated_bars',
-                  'generated_pies', 'manually_annotated',
-                  'zhou_2021')
+#valid_datasets = ('augmented_bars', 'generated_bars',
+#                  'generated_pies', 'manually_annotated',
+#                  'zhou_2021')
 
-def get_dataloaders(dataset_id, bs):
-    assert dataset_id in valid_datasets, 'invalid dataset ID'
+"""
+
+# Custom padding function (resolve batch size error)
+def padding(data):
+    #print(len(data[0][2]))
+
+    
+    for idx in range(len(data[1][2])):
+        datatype = type(data[1][2][idx])
+        print(datatype)
+    
+
+    data[0] = list(data[0])
+    print(type(data[0]))
+    
+    
+    largelen = 0
+
+    for b in range(len(data)):
+        if len(data[b][2][4]) > largelen:
+            largelen = len(data[b][2][4])
+
+    for b in range(len(data)):
+        if len(data[b][2][4]) != largelen:
+
+            for a in range(largelen - len(data[b][2][4])):
+                data[b][2][4].extend([torch.tensor(0.), torch.tensor(0.)])
+                print(data[b][2][4])
+
+            print(len(data[b][2][4]))
+
+            
+            while len(data[b][2][4]) != largelen:
+                data[b][2][4].append([torch.tensor(0.), torch.tensor(0.)])
+            
+    
+    largelen = 0
+
+    for c in range(len(data)):
+        if len(data[c][2][5]) > largelen:
+            largelen = len(data[c][2][5])
+
+    for c in range(len(data)):
+        if len(data[c][2][5]) != largelen:
+            
+            for a in range(largelen - len(data[c][2][5])):
+                data[c][2][5].extend([torch.tensor(0.), torch.tensor(0.)])           
+
+    
+            while len(data[c][2][5]) != largelen:
+                data[c][2][5].append([torch.tensor(0.), torch.tensor(0.)])
+    
+
+    for a in range(len(data)):    
+        tmpPad = list(data[a][2][:-2])
+        print(tmpPad[2].shape)
+        tmpPad = pad_sequence(tmpPad, batch_first = True)
+        data[a][2] = (tmpPad[0], tmpPad[1], tmpPad[2], tmpPad[3], data[a][2][4], data[a][2][5])
+
+    for a in range(len(data)):
+        tmpconv = data
+        tmpconv[a] = list(tmpconv[a])
+        print(type(tmpconv[a]))
+        data[a][2] = list(data[a][2])
+        
+        data[a][2][4] = itertools.zip_longest(data[a][2][4], fillvalue = [torch.tensor(0.), torch.tensor(0.)])
+        data[a][2][5] = itertools.zip_longest(data[a][2][5], fillvalue = [torch.tensor(0.), torch.tensor(0.)])
+        
+        # data[a][2] = tuple(data[a][2]) 
+
+    for b in range(len(data)):
+        print(len(data))
+
+    return data
+
+"""
+
+def get_dataloaders(dataset_id, bs) -> torch.utils.data.dataloader.DataLoader:
+    #assert dataset_id in valid_datasets, 'invalid dataset ID'
     
     im_path = f'datasets/{dataset_id}/imgs'
     annot_path = f'datasets/{dataset_id}/annots'
     train_list = f'datasets/{dataset_id}/train.txt'
     val_list = f'datasets/{dataset_id}/val.txt'
-    
+
     train_set = BarDataset(train_list, im_path, annot_path)
     val_set = BarDataset(val_list, im_path, annot_path)
+
+    #train_set = padding(train_set)
+    #val_set = padding(val_set)
     
+    #train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = bs, num_workers=8, shuffle = True, collate_fn = pad_collate)
+    #val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = bs, num_workers=8, shuffle = False, collate_fn = pad_collate)
+
     train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = bs, num_workers=8, shuffle = True)
     val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = bs, num_workers=8, shuffle = False)
-    
+
     return train_dataloader, val_dataloader
 
 '''
@@ -105,7 +191,7 @@ test_z_dataloader = torch.utils.data.DataLoader(test_z_set, batch_size = bs, num
 def log_losses(start_epoch, num_epochs,
                origin_losses, pclass_losses, pntreg_losses, losses, train_times,
                vorigin_losses, vpclass_losses, vpntreg_losses, vlosses, vtimes,
-               barPs, barRs, barF1s, tickPs, tickRs, tickF1s, meanF1s):
+               barPs, barRs, barF1s, tickPs, tickRs, tickF1s, euPs, euRs, euF1s, edPs, edRs, edF1s, meanF1s):
     timestring = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     logfn = f'logs/{timestring}_train_epochs_{start_epoch}-{num_epochs}.log'
     with open(logfn,'w') as logfile:
@@ -147,6 +233,18 @@ def log_losses(start_epoch, num_epochs,
         logfile.write(', '.join([str(item) for item in tickRs]))
         logfile.write('\nTick F1s:\n')
         logfile.write(', '.join([str(item) for item in tickF1s]))
+        logfile.write('\nUpper Error Precisions:\n')
+        logfile.write(', '.join([str(item) for item in euPs]))
+        logfile.write('\nUpper Error Recalls:\n')
+        logfile.write(', '.join([str(item) for item in euRs]))
+        logfile.write('\nUpper Error F1s:\n')
+        logfile.write(', '.join([str(item) for item in euF1s]))
+        logfile.write('\nLower Error Precisions:\n')
+        logfile.write(', '.join([str(item) for item in edPs]))
+        logfile.write('\nLower Error Recalls:\n')
+        logfile.write(', '.join([str(item) for item in edRs]))
+        logfile.write('\nLower Error F1s:\n')
+        logfile.write(', '.join([str(item) for item in edF1s]))
         
         logfile.write('\nMean F1s:\n')
         logfile.write(', '.join([str(item) for item in meanF1s]))
