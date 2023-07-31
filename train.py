@@ -34,16 +34,16 @@ optimizer = torch.optim.SGD(model.parameters(), lr=mlp_lr, momentum = 0.9)
 #optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
 
 
-bs = 32
+bs = 16
 
 # define print-to-console rate
 num_updates_per_epoch = 10
 update_steps = 1
 
 start_epoch = 0
-num_epochs = 1
+num_epochs = 7
 
-print(f"This training will have a batch size of {bs} for {num_epochs}")
+print(f"This training will have a batch size of {bs} for {num_epochs} epochs")
 
 # detection and eval/error thresholds
 pnt_detect_thresh = 0.9
@@ -60,6 +60,7 @@ checkpoint_dir = sys.argv[2]
 if start_epoch:
     # load checkpoint
     load_checkpoint_name = f'ppn_chk_epoch_{start_epoch:04}.pth'
+    #load_checkpoint_name = "real_annotated.pth"
     load_checkpoint_path = os.path.join(checkpoint_dir, load_checkpoint_name)
     checkpoint = torch.load(load_checkpoint_path)
     model.module.load_state_dict(checkpoint['model_state_dict'])
@@ -196,6 +197,9 @@ for epoch in range(start_epoch, num_epochs):
     for i, (img_path, img, targets) in enumerate(val_dataloader):
         with torch.no_grad():
 
+            #final_chk = torch.load(os.path.join(checkpoint_dir, f"ppn_chk_epoch_{num_epochs:04}.pth"))
+            #model.module.load_state_dict(final_chk["model_state_dict"])
+
             gt_orient, gt_origin, gt_cls_map, gt_reg_map = targets
 
             gt_orient = gt_orient.to(device)
@@ -203,6 +207,9 @@ for epoch in range(start_epoch, num_epochs):
             gt_cls_map = gt_cls_map.to(device)
             gt_reg_map = gt_reg_map.to(device)        
             orient_pred, origin_pred, pts_cls_pred, pts_reg_pred = model(img)
+
+            #print("pts_cls_pred: ", pts_cls_pred)
+            #print("pts_reg_pred: ", pts_reg_pred)
             
             origin_loss = F.smooth_l1_loss(origin_pred, gt_origin)
             pts_cls_loss = F.cross_entropy(pts_cls_pred, gt_cls_map, weight=class_weights)

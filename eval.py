@@ -7,7 +7,7 @@ import time
 import math
 import argparse
 from easydict import EasyDict
-import 
+import sys
 
 
 import torch
@@ -24,11 +24,11 @@ from model.utils.map_conversions import *
 ## Evaluate performance on test sets
 
 if len(sys.argv) != 3:
-    print("USAGE: <checkpoint_dir> <eval_dataloader>")
+    print("USAGE: <dataset_id> <checkpoint_dir> ")
     exit(1)
 
-checkpoint_dir = sys.argv[1]
-dataset_id = sys.argv[2]
+checkpoint_dir = sys.argv[2]
+dataset_id = sys.argv[1]
 
 #checkpoint_dir = 'ppn_checkpoints/20211002_ml_origin'
 #checkpoint_dir = 'ppn_checkpoints/20211107_synth_ptsloss_1500'
@@ -65,9 +65,9 @@ print('epoch, det_thresh, cls_thresh, ev_thresh, time, bar P, bar R, tick P, tic
 for eval_thresh in [2.8, 0.5]:
 #    eval_thresh = eval_thresh / 56
     
-    #checkpoint_name = f'ppn_chk_epoch_{epoch:04}.pth'
+    checkpoint_name = f'ppn_chk_epoch_{epoch:04}.pth'
     
-    checkpoint_name = f'ppn_chk_epoch_0001.pth' ##### TEST #####
+    #checkpoint_name = f'real_annotated.pth' ##### TEST #####
 
     checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name)
 

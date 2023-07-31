@@ -17,6 +17,9 @@ def evaluate_pts(gt_bars, gt_ticks, gt_errorup, gt_errordown, pred_bars, pred_ti
     #    for pb in pred_bars:
     #        pixel_dist = ((gb[0] - pb[0]) ** 2 + (gb[1] - pb[1]) ** 2) ** (0.5)
     
+    #print("gt_bars: ", gt_bars)
+    #print("pred_bars", pred_bars)
+
     # fill a matching matrix, check rows (ground truth) for uniqueness
     bar_matches = [[((gb[0] - pb[1]) ** 2 + (gb[1] - pb[0]) ** 2) ** (0.5) if
                     ((gb[0] - pb[1]) ** 2 + (gb[1] - pb[0]) ** 2) ** (0.5) < dist_thresh
@@ -28,10 +31,15 @@ def evaluate_pts(gt_bars, gt_ticks, gt_errorup, gt_errordown, pred_bars, pred_ti
     
     #num_matches = np.count_nonzero(bar_matches) ## ERROR: numpy must be in cpu
     num_matches = count_nonzero(bar_matches)
-    
+
+    """
+    print("bar matches: ", bar_matches)
+    print("pred: ", len(pred_bars))
+    print("gt: ", len(gt_bars))
+    """
+
     bar_precision = (num_matches / len(pred_bars)) if len(pred_bars) != 0 else 0
     bar_recall = (num_matches / len(gt_bars)) if len(gt_bars) != 0 else 0
-
     
     # errorup
     eu_matches = [[((gb[0] - pb[1]) ** 2 + (gb[1] - pb[0]) ** 2) ** (0.5) if

@@ -48,7 +48,7 @@ class BarValueExtractor(nn.Module):
                             nn.LeakyReLU())
         
         # output 56x56 pixel map of point classes ['None','t','b','eu','ed'], and regression values (dx, dy)
-        # self.pnt_class = nn.Conv2d(256, 3, 1, 1, 0)
+        #self.pnt_class = nn.Conv2d(256, 3, 1, 1, 0)
         self.pnt_class = nn.Conv2d(256, 5, 1, 1, 0)        
         self.pnt_reg = nn.Conv2d(256, 2, 1, 1, 0)
         

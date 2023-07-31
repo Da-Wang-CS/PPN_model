@@ -24,7 +24,7 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
         conf = torch.sigmoid(pred_cls_map[im, 1, x, y])
         bars[im].append((pos_y, pos_x, conf))                    # x/y flipped
-    
+
     masked_ticks = (torch.sigmoid(pred_cls_map[:,2]) * pts_mask).gt(conf_thresh)
     t_im, t_x, t_y = torch.nonzero(masked_ticks, as_tuple=True)
     for im, x, y in zip(t_im, t_x, t_y):
@@ -58,6 +58,8 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
         conf = torch.sigmoid(pred_cls_map[im, 4, x, y])
         errordown[im].append((pos_y, pos_x, conf))
 
+    #print("bars: ", bars)
+
     # non-maximum suppression here... can also apply some heuristic rules
     # (e.g. ticks in a single column, bars evenly spaced horizontally)
     
@@ -82,7 +84,7 @@ def nms(bars, ticks, errorup, errordown, thresh = 1.5 / 56):
                               if i not in checked_pts]
             checked_pts.extend(neighbors_inds)
             nms_bars[im].append(pt)
-
+    
     for im, im_pts in enumerate(ticks):
         sorted_impts = sorted(im_pts, key=lambda p:-p[2])        # sort by conf score
         checked_pts = []                                         # keep track of 'used' points
@@ -117,7 +119,6 @@ def nms(bars, ticks, errorup, errordown, thresh = 1.5 / 56):
                               if abs(p[0]-pt[0]) + abs(p[1]-pt[1]) / 5 < thresh
                               if i not in checked_pts]
             checked_pts.extend(neighbors_inds)
-            nms_errordown[im].append(pt)
-    
+            nms_errordown[im].append(pt)    
     
     return nms_bars, nms_ticks, nms_errorup, nms_errordown
