@@ -1,20 +1,15 @@
 # Carlos X. Soto, csoto@bnl.gov, 2022
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms
 from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
 
 from model.utils.metrics import *
 from model.utils.map_conversions import *
 
 from PIL import Image
-import numpy as np
 import os
-
-from tqdm.auto import tqdm
 
 def pad_to_square(img, pad_value):
     c, h, w = img.shape
@@ -145,10 +140,19 @@ class BarDataset(Dataset):
 
         #x = (errorup[0] + pad[0]) / (w + pad[0] + pad[1])
 
+        #print("orig_bars: ", bars)
+
+        """
         if len(errorup) != 0 and len(errordown) != 0:
             gt_cls_map, gt_reg_map = pts_lists_to_map([bars, ticks, errorup, errordown], w, h, pad)
         else:
             gt_cls_map, gt_reg_map = pts_lists_to_map([bars, ticks], w, h, pad)
+        """
+
+        #print("errorup: ", errorup)
+        #print("errordown: ", errordown)
+
+        gt_cls_map, gt_reg_map = pts_lists_to_map([bars, ticks, errorup, errordown], w, h, pad)
 
         orientation = orientation.unsqueeze(0)
 

@@ -5,11 +5,61 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+mpl.use("agg")
+
 id_to_name = {0: 'None', 1: 'bar', 2: 'tick', 3: 'errorup', 4: 'errordown'}
 name_to_id = {'None': 0, 'bar': 1, 'tick': 2, 'errorup': 3, 'errordown': 4}
 
 def score_points_list(gt_bars, gt_ticks, pred_bars, pred_ticks):
     pass
+
+def vis_cls_map(gt_cls_map, pred_cls_map):
+    """
+    plt.imshow(cls_map, cmap = "autumn")
+    plt.colorbar()
+            
+    plt.savefig("cls_map_heat.png", format = "png")
+    """
+
+    pred_types = ["Background", "Bar", "Tick", "Upper Error", "Lower Error"]
+
+    plt.rcParams["figure.figsize"] = (15,15)
+
+    plt.subplot(3, 2, 1)
+    plt.title("Ground Truth")
+    plt.imshow(gt_cls_map[0])
+    plt.colorbar()
+
+    for idx, label in enumerate(pred_types):
+        plt.subplot(3, 2, idx + 2)
+        plt.title(f"{label} Prediction")
+        if idx != 0:
+            plt.imshow(F.sigmoid(pred_cls_map.detach()[0][idx]))
+        else:
+            plt.imshow(F.sigmoid(pred_cls_map.detach()[0][0]) * -1.)
+        
+        plt.colorbar()
+
+    """
+    plt.subplot(3, 2, 2)
+    plt.imshow(F.sigmoid(pred_cls_map.detach()[0][0] * -1.))
+    plt.subplot(3, 2, 3)
+    plt.imshow(F.sigmoid(pred_cls_map.detach()[0][1]))
+    plt.subplot(3, 2, 4)
+    plt.imshow(F.sigmoid(pred_cls_map.detach()[0][2]))
+    plt.subplot(3, 2, 5)
+    plt.imshow(F.sigmoid(pred_cls_map.detach()[0][3]))
+    plt.subplot(3, 2, 6)
+    plt.imshow(F.sigmoid(pred_cls_map.detach()[0][4]))
+    plt.colorbar()
+    """
+    
+    plt.savefig("cls_map_heat.png", format = "png")
+
+    plt.close("all")
 
 # convert list of points of different classes (in single image)
 # to (56x56) map of point classes and regression values
@@ -69,6 +119,8 @@ def pts_map_to_lists_v2(pts_cls_map, pts_reg_map):
         cls = classes[im, x, y]
         pos_x = (x.float() * 2 + 1) / (classes.shape[1] * 2)
         pos_y = (y.float() * 2 + 1) / (classes.shape[2] * 2)
+        #pos_x = x.float() / classes.shape[1]
+        #pos_y = y.float() / classes.shape[2]
         
         # offset from midpoint of this pixel on feature map
         reg = pts_reg_map[im, :, x, y]
@@ -102,6 +154,7 @@ def pts_map_to_lists_v2(pts_cls_map, pts_reg_map):
 # NOTE: CLASSES ARE NOT SOFT-MAXED PROBABILITIES
 # NOTE: NEED TO MAKE REGRESSION BOUND TO [-1,1] (scaled to one pixel in 56x56 map)
 def pts_map_to_lists(pts_cls_pred, pts_reg_pred):
+    raise DeprecationWarning("Please use pts_map_to_lists_v2 instead")
     # seperate lists per batch image
     bars = [[] for im in range(pts_cls_pred.shape[0])]
     ticks = [[] for im in range(pts_cls_pred.shape[0])]

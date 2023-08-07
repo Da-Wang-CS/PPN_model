@@ -4,9 +4,6 @@
 
 import os
 import time
-import math
-import argparse
-from easydict import EasyDict
 import sys
 
 import torch
@@ -34,14 +31,14 @@ optimizer = torch.optim.SGD(model.parameters(), lr=mlp_lr, momentum = 0.9)
 #optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
 
 
-bs = 16
+bs = 32
 
 # define print-to-console rate
 num_updates_per_epoch = 10
 update_steps = 1
 
 start_epoch = 0
-num_epochs = 7
+num_epochs = 50
 
 print(f"This training will have a batch size of {bs} for {num_epochs} epochs")
 
@@ -60,7 +57,7 @@ checkpoint_dir = sys.argv[2]
 if start_epoch:
     # load checkpoint
     load_checkpoint_name = f'ppn_chk_epoch_{start_epoch:04}.pth'
-    #load_checkpoint_name = "real_annotated.pth"
+    #load_checkpoint_name = "large_train_100.pth"
     load_checkpoint_path = os.path.join(checkpoint_dir, load_checkpoint_name)
     checkpoint = torch.load(load_checkpoint_path)
     model.module.load_state_dict(checkpoint['model_state_dict'])
@@ -180,9 +177,9 @@ for epoch in range(start_epoch, num_epochs):
     train_times.append(ttime)
     
     # reduce learning rate
-#    if (epoch + 1) % 200 == 0:
-#        mlp_lr = mlp_lr / 2
-#        optimizer = torch.optim.SGD(model.parameters(), lr=mlp_lr, momentum = 0.9)
+    if (epoch + 1) % 200 == 0:
+        mlp_lr = mlp_lr / 2
+        optimizer = torch.optim.SGD(model.parameters(), lr=mlp_lr, momentum = 0.9)
     
     epoch_vorigin_loss = 0.
     epoch_vpclass_loss = 0.

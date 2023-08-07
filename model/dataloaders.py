@@ -4,8 +4,6 @@ import torch
 #from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import datetime
-from tqdm.auto import tqdm
-import itertools
 
 from model.Datasets import BarDataset, ImageOnlyDataset
 
@@ -113,6 +111,17 @@ def get_dataloaders(dataset_id, bs) -> torch.utils.data.dataloader.DataLoader:
     val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = bs, num_workers=8, shuffle = False)
 
     return train_dataloader, val_dataloader
+
+def load_test_data(dataset_id, bs) -> torch.utils.data.dataloader.DataLoader:
+    
+    im_path = f"datasets/{dataset_id}/imgs"
+    annot_path = f"datasets/{dataset_id}/annots"
+    test_list = f"datasets/{dataset_id}/test.txt"
+
+    test_set = BarDataset(test_list, im_path, annot_path)
+    test_dataloader = torch.utils.data.DataLoader(test_set, batch_size = bs, num_workers = 8, shuffle = False)
+
+    return test_dataloader
 
 '''
 # Dataset and dataloader
