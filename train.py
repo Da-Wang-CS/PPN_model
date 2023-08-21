@@ -31,14 +31,14 @@ optimizer = torch.optim.SGD(model.parameters(), lr=mlp_lr, momentum = 0.9)
 #optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
 
 
-bs = 32
+bs = 1
 
 # define print-to-console rate
 num_updates_per_epoch = 10
 update_steps = 1
 
 start_epoch = 0
-num_epochs = 50
+num_epochs = 1
 
 print(f"This training will have a batch size of {bs} for {num_epochs} epochs")
 
@@ -64,13 +64,13 @@ if start_epoch:
 
 # train losses
 origin_losses = []
-#orient_losses = []
+orient_losses = []
 pclass_losses = []
 pntreg_losses = []
 losses = []
 # test/validation losses
 vorigin_losses = []
-#vorient_losses = []
+vorient_losses = []
 vpclass_losses = []
 vpntreg_losses = []
 vlosses = []
@@ -92,14 +92,15 @@ for epoch in range(start_epoch, num_epochs):
     t = time.time()    
     model.train()
     
+    epoch_orient_loss = 0.
     epoch_origin_loss = 0.
     epoch_pclass_loss = 0.
     epoch_pntreg_loss = 0.
     epoch_total_loss = 0.
     
-    for i, (img_path, img, targets) in enumerate(train_dataloader):
+    for i, (img_path, img, targets, _) in enumerate(train_dataloader):
 
-        gt_orient, gt_origin, gt_cls_map, gt_reg_map = targets       
+        gt_orient, gt_origin, gt_cls_map, gt_reg_map = targets   
     
         #img = img.to(device)
         gt_orient = gt_orient.to(device)
@@ -117,7 +118,7 @@ for epoch in range(start_epoch, num_epochs):
             
         ## COMPUTE LOSS        
         origin_loss = F.smooth_l1_loss(origin_pred, gt_origin)
-        #orient_loss = F.binary_cross_entropy(orient_pred, gt_orient)
+        orient_loss = F.binary_cross_entropy(orient_pred, gt_orient)
         pts_cls_loss = F.cross_entropy(pts_cls_pred, gt_cls_map, weight=class_weights, reduction='mean')
         
         # only count reg loss for cells with objects
@@ -141,16 +142,21 @@ for epoch in range(start_epoch, num_epochs):
         for bim in range(len(pred_bars)):                         # per batch image
             gbars, gticks, geu, ged = gt_bars[bim], gt_ticks[bim], gt_errorup[bim], gt_errordown[bim]
             pbars, pticks, peu, ped = pred_bars[bim], pred_ticks[bim], pred_errorup[bim], pred_errordown[bim]
+            #print("after: ", len(gbars))
+            #print("pbars: ", len(pbars))
             pts_list_loss += evaluate_pts_err(gbars, gticks, geu, ged, pbars, pticks, peu, ped, eval_thresh)
-            tick_align_loss += sum([abs(t[0] - origin_pred[bim, 0]) for t in pticks])
-        
+            if round(gt_orient.item()) == 1:
+                tick_align_loss += sum([abs(t[0] - origin_pred[bim, 0]) for t in pticks])
+            elif round(gt_orient.item()) == 0:
+                tick_align_loss += sum([abs(t[1] - origin_pred[bim, 1]) for t in pticks])
         
         optimizer.zero_grad()
         
-        loss = origin_loss + pts_cls_loss + pts_reg_loss + \
+        loss = origin_loss + orient_loss + pts_cls_loss + pts_reg_loss + \
                pts_list_loss / 10. + tick_align_loss / 1000.
         
         #orient_losses.append(orient_loss.item())
+        epoch_orient_loss += orient_loss.item()
         epoch_origin_loss += origin_loss.item()
         epoch_pclass_loss += pts_cls_loss.item()
         epoch_pntreg_loss += pts_reg_loss.item()
@@ -162,12 +168,13 @@ for epoch in range(start_epoch, num_epochs):
         
         if (i + 1) % update_steps == 0:
             print(f'Ep {epoch+1}, b {i+1}, L\'s: ' +
-                  #'orient: {orient_loss:.4f}, ' +
+                  f'orient: {orient_loss:.4f}, ' +
                   f'orig: {origin_loss:.3f}, cls: {pts_cls_loss:.3f}, ' + 
                   f'reg: {pts_reg_loss:.3f}, pts: {pts_list_loss:.3f}, ' +
                   f'algn: {tick_align_loss:.3f}, tot: {loss:.3f}')
     
     origin_losses.append(epoch_origin_loss)
+    orient_losses.append(epoch_orient_loss)
     pclass_losses.append(epoch_pclass_loss)
     pntreg_losses.append(epoch_pntreg_loss)
     losses.append(epoch_total_loss)
@@ -177,11 +184,12 @@ for epoch in range(start_epoch, num_epochs):
     train_times.append(ttime)
     
     # reduce learning rate
-    if (epoch + 1) % 200 == 0:
+    if (epoch + 1) % 10 == 0:
         mlp_lr = mlp_lr / 2
         optimizer = torch.optim.SGD(model.parameters(), lr=mlp_lr, momentum = 0.9)
     
     epoch_vorigin_loss = 0.
+    epoch_vorient_loss = 0.
     epoch_vpclass_loss = 0.
     epoch_vpntreg_loss = 0.
     epoch_vtotal_loss = 0.
@@ -191,7 +199,7 @@ for epoch in range(start_epoch, num_epochs):
     # evaluate model loss on val set
     t = time.time()
     model.eval()
-    for i, (img_path, img, targets) in enumerate(val_dataloader):
+    for i, (img_path, img, targets, _) in enumerate(val_dataloader):
         with torch.no_grad():
 
             #final_chk = torch.load(os.path.join(checkpoint_dir, f"ppn_chk_epoch_{num_epochs:04}.pth"))
@@ -227,12 +235,16 @@ for epoch in range(start_epoch, num_epochs):
                 gbars, gticks, geu, ged = gt_bars[bim], gt_ticks[bim], gt_errorup[bim], gt_errordown[bim]
                 pbars, pticks, peu, ped = pred_bars[bim], pred_ticks[bim], pred_errorup[bim], pred_errordown[bim]
                 pts_list_loss += evaluate_pts_err(gbars, gticks, geu, ged, pbars, pticks, peu, ped, eval_thresh)
-                tick_align_loss += sum([abs(t[0] - origin_pred[bim, 0]) for t in pticks])
+                if round(gt_orient.item()) == 1:
+                    tick_align_loss += sum([abs(t[0] - origin_pred[bim, 0]) for t in pticks])
+                elif round(gt_orient.item()) == 0:
+                    tick_align_loss += sum([abs(t[1] - origin_pred[bim, 1]) for t in pticks])
             
             vloss = origin_loss + pts_cls_loss + pts_reg_loss + \
                     pts_list_loss / 10. + tick_align_loss / 1000.
 
             #vorient_losses.append(orient_loss.item())
+            epoch_vorient_loss += orient_loss.item()
             epoch_vorigin_loss += origin_loss.item()
             epoch_vpclass_loss += pts_cls_loss.item()
             epoch_vpntreg_loss += pts_reg_loss.item()
@@ -261,6 +273,7 @@ for epoch in range(start_epoch, num_epochs):
                     epoch_edR.append(edR)
     
     vorigin_losses.append(epoch_vorigin_loss)
+    vorient_losses.append(epoch_vorient_loss)
     vpclass_losses.append(epoch_vpclass_loss)
     vpntreg_losses.append(epoch_vpntreg_loss)
     vlosses.append(epoch_vtotal_loss)

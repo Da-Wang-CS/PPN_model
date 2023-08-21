@@ -2,7 +2,7 @@
 
 import torch
 #from torch.utils.data import DataLoader
-from torch.nn.utils.rnn import pad_sequence
+#from torch.nn.utils.rnn import pad_sequence
 import datetime
 
 from model.Datasets import BarDataset, ImageOnlyDataset
@@ -107,7 +107,7 @@ def get_dataloaders(dataset_id, bs) -> torch.utils.data.dataloader.DataLoader:
     #train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = bs, num_workers=8, shuffle = True, collate_fn = pad_collate)
     #val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = bs, num_workers=8, shuffle = False, collate_fn = pad_collate)
 
-    train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = bs, num_workers=8, shuffle = True)
+    train_dataloader = torch.utils.data.DataLoader(train_set, batch_size = bs, num_workers=8, shuffle = False)
     val_dataloader = torch.utils.data.DataLoader(val_set, batch_size = bs, num_workers=8, shuffle = False)
 
     return train_dataloader, val_dataloader

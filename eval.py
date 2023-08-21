@@ -41,7 +41,7 @@ dataset_id = sys.argv[1]
 #eval_dataloader = zhao_test_dl
 
 #eval_dataloader = get_dataloaders(dataset_id, 100)
-eval_dataloader, _ = get_dataloaders(dataset_id, 32)
+eval_dataloader, _ = get_dataloaders(dataset_id, 1)
 
 # defaults
 #epoch = 9800
@@ -62,8 +62,8 @@ print('epoch, det_thresh, cls_thresh, ev_thresh, time, bar P, bar R, tick P, tic
 for eval_thresh in [2.8, 0.5]:
 #    eval_thresh = eval_thresh / 56
     
-    checkpoint_name = f'ppn_chk_epoch_{epoch:04}.pth'
-    #checkpoint_name = "large_train_100.pth"
+    #checkpoint_name = f'ppn_chk_epoch_{epoch:04}.pth'
+    checkpoint_name = "sec_train_50.pth"
     
     #checkpoint_name = f'real_annotated.pth' ##### TEST #####
 
@@ -80,7 +80,7 @@ for eval_thresh in [2.8, 0.5]:
 
     #for k, (img_path, img, targets) in enumerate(eval_dataloader):
 
-    for (img_path, img, targets) in tqdm(eval_dataloader):
+    for (img_path, img, targets, _) in tqdm(eval_dataloader):
         
         # gt_orient, gt_origin, gt_cls_map, gt_reg_map, _, _ = targets
 

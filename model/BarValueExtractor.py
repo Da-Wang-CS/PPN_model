@@ -33,8 +33,8 @@ class BarValueExtractor(nn.Module):
 #        self.origin = nn.Sequential(                         # 56x56 to 14x14?
 #                            nn.Linear(3136, 196),
 #                            nn.Linear(196,2))
-#        self.orientation = nn.Linear(3136, 1)                # don't need right now...
-        
+        self.orientation = nn.Linear(3136, 1)               
+
         # wider receptive field (9x9 kernel), pad to keep same size featmap
         #self.ppn_feats = nn.Conv2d(256, 256, 9, 1, 4)
         self.ppn_feats = nn.Sequential(
@@ -73,10 +73,10 @@ class BarValueExtractor(nn.Module):
         
         origin = self.origin(flat56)
         origin_pred = torch.sigmoid(origin)           # sigmoid might not be needed?
-#        orient = self.orientation(flat56)
-#        orient_pred = torch.sigmoid(orient)           # sigmoid might not be needed?
+        orient = self.orientation(flat56)
+        orient_pred = torch.sigmoid(orient)           # sigmoid might not be needed?
         
-        orient_pred = origin_pred
+        #orient_pred = origin_pred
         #return origin_pred, orient_pred
         
         pnt_feats = self.ppn_feats(feat)        

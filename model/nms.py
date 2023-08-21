@@ -23,7 +23,7 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
         pos_x += reg[0] / (pts_mask.shape[1] * 2)                # reg[0] corresponds to y, and vice-versa
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
         conf = torch.sigmoid(pred_cls_map[im, 1, x, y])
-        bars[im].append((pos_y, pos_x, conf))                    # x/y flipped
+        bars[im].append((pos_x, pos_y, conf))                    # x/y flipped
 
     masked_ticks = (torch.sigmoid(pred_cls_map[:,2]) * pts_mask).gt(conf_thresh)
     t_im, t_x, t_y = torch.nonzero(masked_ticks, as_tuple=True)
@@ -34,7 +34,7 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
         pos_x += reg[0] / (pts_mask.shape[1] * 2)
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
         conf = torch.sigmoid(pred_cls_map[im, 2, x, y])
-        ticks[im].append((pos_y, pos_x, conf))                   # x/y flipped
+        ticks[im].append((pos_x, pos_y, conf))                   # x/y flipped
 
     masked_errorup = (torch.sigmoid(pred_cls_map[:,3]) * pts_mask).gt(conf_thresh)
     eu_im, eu_x, eu_y = torch.nonzero(masked_errorup, as_tuple = True)
@@ -45,7 +45,7 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
         pos_x += reg[0] / (pts_mask.shape[1] * 2)
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
         conf = torch.sigmoid(pred_cls_map[im, 3, x, y])
-        errorup[im].append((pos_y, pos_x, conf))
+        errorup[im].append((pos_x, pos_y, conf))
 
     masked_errordown = (torch.sigmoid(pred_cls_map[:,4]) * pts_mask).gt(conf_thresh)
     ed_im, ed_x, ed_y = torch.nonzero(masked_errordown, as_tuple = True)
@@ -56,7 +56,7 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
         pos_x += reg[0] / (pts_mask.shape[1] * 2)
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
         conf = torch.sigmoid(pred_cls_map[im, 4, x, y])
-        errordown[im].append((pos_y, pos_x, conf))
+        errordown[im].append((pos_x, pos_y, conf))
 
     #print("bars: ", bars)
 

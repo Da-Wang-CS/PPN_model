@@ -3,3 +3,12 @@ __pycache__
 logs/*
 checkpoints/*
 *.txt
+vis/*
+tools/*
+*.png
+*.jpg
+*.jpeg
+imgocr/*
+datasets/*
+data_process/*
+*.out

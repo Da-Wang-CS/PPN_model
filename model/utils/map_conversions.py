@@ -89,13 +89,14 @@ def pts_lists_to_map(pts_lists, imw, imh, pad, mapsize = 56.0):
             regx = x * mapsize - posx - 0.5
             regy = y * mapsize - posy - 0.5
             
-            #cls_map[posx, posy] = cls_id + 1
-            #reg_map[0, posx, posy] = regx
-            #reg_map[1, posx, posy] = regy
+            cls_map[posx, posy] = cls_id + 1
+            reg_map[0, posx, posy] = regx
+            reg_map[1, posx, posy] = regy
             # transpose maps
-            cls_map[posy, posx] = cls_id + 1
-            reg_map[0, posy, posx] = regx
-            reg_map[1, posy, posx] = regy            
+            
+            #cls_map[posy, posx] = cls_id + 1
+            #reg_map[0, posy, posx] = regx
+            #reg_map[1, posy, posx] = regy            
             
             #cls_map = cls_map.transpose(0,1)
             #reg_map = reg_map.transpose(1,2)

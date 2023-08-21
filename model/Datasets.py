@@ -149,7 +149,7 @@ class BarDataset(Dataset):
             gt_cls_map, gt_reg_map = pts_lists_to_map([bars, ticks], w, h, pad)
         """
 
-        #print("errorup: ", errorup)
+        #print("orig_len: ", len(bars))
         #print("errordown: ", errordown)
 
         gt_cls_map, gt_reg_map = pts_lists_to_map([bars, ticks, errorup, errordown], w, h, pad)
@@ -161,7 +161,7 @@ class BarDataset(Dataset):
         
         targets = [orientation, origin, gt_cls_map, gt_reg_map]
         
-        return img_path, img, targets
+        return img_path, img, targets, pad
     
     def __len__(self):
         return len(self.ids)
