@@ -1,11 +1,10 @@
 # Carlos X. Soto, csoto@bnl.gov, 2022
 
-#import numpy as np
+import torch
 
+"""
 def count_nonzero(arr):
     ct = 0
-
-    print(arr)
 
     for a in range(len(arr)):
         for b in range(len(arr[a])):
@@ -13,7 +12,8 @@ def count_nonzero(arr):
                 ct += 1
 
     return ct
-
+"""
+    
 """
 def old_nonzero(arr):
     ct = 0
@@ -46,7 +46,7 @@ def evaluate_pts(gt_bars, gt_ticks, gt_errorup, gt_errordown, pred_bars, pred_ti
         bar_matches[i] = [m if m <= min_dist else 0 for m in bar_matches[i]]
 
     #num_matches = np.count_nonzero(bar_matches) ## ERROR: numpy must be in cpu
-    num_matches = count_nonzero(bar_matches)
+    num_matches = torch.count_nonzero(torch.tensor(bar_matches))
 
     """
     print("bar matches: ", bar_matches)
@@ -68,10 +68,10 @@ def evaluate_pts(gt_bars, gt_ticks, gt_errorup, gt_errordown, pred_bars, pred_ti
         min_dist = min([eum for eum in eu_matches[i] if eum > 0], default = 0.)
         eu_matches[i] = [m if m <= min_dist else 0 for m in eu_matches[i]]
     
-    num_matches = count_nonzero(eu_matches)
+    num_matches = torch.count_nonzero(torch.tensor(eu_matches))
 
-    eu_precision = (num_matches / (len(pred_errorup) * 2)) if len(pred_errorup) != 0 else 0
-    eu_recall = (num_matches / (len(gt_errorup) * 2)) if len(gt_errorup) != 0 else 0
+    eu_precision = (num_matches / (len(pred_errorup))) if len(pred_errorup) != 0 else 0
+    eu_recall = (num_matches / (len(gt_errorup))) if len(gt_errorup) != 0 else 0
 
     
     # errordown
@@ -83,10 +83,10 @@ def evaluate_pts(gt_bars, gt_ticks, gt_errorup, gt_errordown, pred_bars, pred_ti
         min_dist = min([edm for edm in ed_matches[i] if edm > 0], default = 0.)
         ed_matches[i] = [m if m <= min_dist else 0 for m in ed_matches[i]]
     
-    num_matches = count_nonzero(ed_matches)
+    num_matches = torch.count_nonzero(torch.tensor(ed_matches))
     
-    ed_precision = (num_matches / (len(pred_errordown) * 2)) if len(pred_errordown) != 0 else 0
-    ed_recall = (num_matches / (len(gt_errordown) * 2)) if len(gt_errordown) != 0 else 0
+    ed_precision = (num_matches / (len(pred_errordown))) if len(pred_errordown) != 0 else 0
+    ed_recall = (num_matches / (len(gt_errordown))) if len(gt_errordown) != 0 else 0
     
     
     ## again for ticks...
@@ -99,10 +99,10 @@ def evaluate_pts(gt_bars, gt_ticks, gt_errorup, gt_errordown, pred_bars, pred_ti
         tick_matches[i] = [m if m <= min_dist else 0 for m in tick_matches[i]]
     
     #num_matches = np.count_nonzero(tick_matches) ## NOTE: numpy must be in cpu
-    num_matches = count_nonzero(tick_matches)
+    num_matches = torch.count_nonzero(torch.tensor(tick_matches))
     
-    tick_precision = (num_matches / (len(pred_ticks) * 2)) if len(pred_ticks) != 0 else 0
-    tick_recall = (num_matches / (len(gt_ticks) * 2)) if len(gt_ticks) != 0 else 0
+    tick_precision = (num_matches / (len(pred_ticks))) if len(pred_ticks) != 0 else 0
+    tick_recall = (num_matches / (len(gt_ticks))) if len(gt_ticks) != 0 else 0
     
     return bar_precision, bar_recall, tick_precision, tick_recall, eu_precision, eu_recall, ed_precision, ed_recall
 

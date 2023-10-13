@@ -2,8 +2,29 @@
 
 import torch
 
+def getPredPts(pred_cls_map, pred_reg_map, none_cls_map, pt_thresh = 0.8, conf_thresh = 0.5):
+    points = []
+    
+    pts_mask = torch.sigmoid(none_cls_map).lt(pt_thresh)
+
+    masked_pts = (torch.sigmoid(pred_cls_map) * pts_mask).gt(conf_thresh)
+    b_im, b_x, b_y = torch.nonzero(masked_pts, as_tuple=True)
+    for im, x, y in zip(b_im, b_x, b_y):
+        pos_x = (x.float() * 2 + 1) / (pts_mask.shape[1] * 2)    # MIDDLE of each point on 56x56 grid
+        pos_y = (y.float() * 2 + 1) / (pts_mask.shape[2] * 2)
+        reg = pred_reg_map[im, :, x, y]
+        pos_x += reg[0] / (pts_mask.shape[1] * 2)                # reg[0] corresponds to y, and vice-versa
+        pos_y += reg[1] / (pts_mask.shape[2] * 2)
+        conf = torch.sigmoid(pred_cls_map[im, 1, x, y])
+        points[im].append((pos_x, pos_y, conf))                    # x/y flipped
+
+    return points
+
 # expect cls_map.shape == [N,3,56,56]
 def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh = 0.5):
+
+    # raise DeprecationWarning("Deprecated for the parallel PPN model")
+    #print("reg:", pred_reg_map.shape)
 
     # seperate lists per batch image
     bars = [[] for im in range(pred_cls_map.shape[0])]
@@ -19,10 +40,10 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
     for im, x, y in zip(b_im, b_x, b_y):
         pos_x = (x.float() * 2 + 1) / (pts_mask.shape[1] * 2)    # MIDDLE of each point on 56x56 grid
         pos_y = (y.float() * 2 + 1) / (pts_mask.shape[2] * 2)
-        reg = pred_reg_map[im, :, x, y]
+        reg = pred_reg_map[im, 1, :, x, y]
         pos_x += reg[0] / (pts_mask.shape[1] * 2)                # reg[0] corresponds to y, and vice-versa
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
-        conf = torch.sigmoid(pred_cls_map[im, 1, x, y])
+        conf = torch.sigmoid(pred_cls_map[im, 1, 1, x, y])
         bars[im].append((pos_x, pos_y, conf))                    # x/y flipped
 
     masked_ticks = (torch.sigmoid(pred_cls_map[:,2]) * pts_mask).gt(conf_thresh)
@@ -30,10 +51,10 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
     for im, x, y in zip(t_im, t_x, t_y):
         pos_x = (x.float() * 2 + 1) / (pts_mask.shape[1] * 2)
         pos_y = (y.float() * 2 + 1) / (pts_mask.shape[2] * 2)
-        reg = pred_reg_map[im, :, x, y]
+        reg = pred_reg_map[im, 2, :, x, y]
         pos_x += reg[0] / (pts_mask.shape[1] * 2)
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
-        conf = torch.sigmoid(pred_cls_map[im, 2, x, y])
+        conf = torch.sigmoid(pred_cls_map[im, 2, 2, x, y])
         ticks[im].append((pos_x, pos_y, conf))                   # x/y flipped
 
     masked_errorup = (torch.sigmoid(pred_cls_map[:,3]) * pts_mask).gt(conf_thresh)
@@ -41,10 +62,10 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
     for im, x, y in zip(eu_im, eu_x, eu_y):
         pos_x = (x.float() * 2 + 1) / (pts_mask.shape[1] * 2)
         pos_y = (y.float() * 2 + 1) / (pts_mask.shape[2] * 2)
-        reg = pred_reg_map[im, :, x, y]
+        reg = pred_reg_map[im, 3, :, x, y]
         pos_x += reg[0] / (pts_mask.shape[1] * 2)
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
-        conf = torch.sigmoid(pred_cls_map[im, 3, x, y])
+        conf = torch.sigmoid(pred_cls_map[im, 3, 3, x, y])
         errorup[im].append((pos_x, pos_y, conf))
 
     masked_errordown = (torch.sigmoid(pred_cls_map[:,4]) * pts_mask).gt(conf_thresh)
@@ -52,10 +73,10 @@ def get_pred_bars_ticks(pred_cls_map, pred_reg_map, pt_thresh = 0.8, conf_thresh
     for im, x, y in zip(ed_im, ed_x, ed_y):
         pos_x = (x.float() * 2 + 1) / (pts_mask.shape[1] * 2)
         pos_y = (y.float() * 2 + 1) / (pts_mask.shape[2] * 2)
-        reg = pred_reg_map[im, :, x, y]
+        reg = pred_reg_map[im, 4, :, x, y]
         pos_x += reg[0] / (pts_mask.shape[1] * 2)
         pos_y += reg[1] / (pts_mask.shape[2] * 2)
-        conf = torch.sigmoid(pred_cls_map[im, 4, x, y])
+        conf = torch.sigmoid(pred_cls_map[im, 4, 4, x, y])
         errordown[im].append((pos_x, pos_y, conf))
 
     #print("bars: ", bars)

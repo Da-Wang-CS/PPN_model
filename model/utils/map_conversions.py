@@ -65,15 +65,22 @@ def vis_cls_map(gt_cls_map, pred_cls_map):
 # to (56x56) map of point classes and regression values
 def pts_lists_to_map(pts_lists, imw, imh, pad, mapsize = 56.0):
     
-    batch_size = len(pts_lists)
-    cls_map = torch.zeros((56, 56), dtype = int)
-    reg_map = torch.zeros((2, 56, 56))
+    # batch_size = len(pts_lists)
+
+    #cls_map = torch.zeros((56, 56), dtype = int)
+    #reg_map = torch.zeros((2, 56, 56))
     
     # pts_lists is list of lists of points
     # one top-level list per class
     # first class gets id 1 (id 0 is None class)
+
+    # clsMapList, regMapList = [], []
+
+    cls_map = torch.zeros((5, 56, 56), dtype = float)
+    reg_map = torch.zeros((5, 2, 56, 56))
     
     for cls_id, cls_list in enumerate(pts_lists):
+        
         for point in cls_list:
             
             #print('pad', pad)
@@ -89,9 +96,10 @@ def pts_lists_to_map(pts_lists, imw, imh, pad, mapsize = 56.0):
             regx = x * mapsize - posx - 0.5
             regy = y * mapsize - posy - 0.5
             
-            cls_map[posx, posy] = cls_id + 1
-            reg_map[0, posx, posy] = regx
-            reg_map[1, posx, posy] = regy
+            cls_map[cls_id + 1, posx, posy] = 1.0
+            reg_map[cls_id + 1, 0, posx, posy] = regx
+            reg_map[cls_id + 1, 1, posx, posy] = regy
+
             # transpose maps
             
             #cls_map[posy, posx] = cls_id + 1
@@ -100,6 +108,7 @@ def pts_lists_to_map(pts_lists, imw, imh, pad, mapsize = 56.0):
             
             #cls_map = cls_map.transpose(0,1)
             #reg_map = reg_map.transpose(1,2)
+
     
     return cls_map, reg_map
 
@@ -111,20 +120,30 @@ def pts_map_to_lists_v2(pts_cls_map, pts_reg_map):
     errorup = [[] for im in range(pts_cls_map.shape[0])]
     errordown = [[] for im in range(pts_cls_map.shape[0])]
 
+    """
+    print(pts_cls_map.shape)
+
+    for item in pts_cls_map[0]:
+        for value in item:
+            if value != 0:
+                print(value)
+    """
+                
     #classes = torch.argmax(pts_cls_map, 1)
     classes = pts_cls_map
-    pts_im, pts_x, pts_y = torch.nonzero(classes, as_tuple=True)
+    pts_im, pts_cls, pts_x, pts_y = torch.nonzero(classes, as_tuple=True)
     
-    for im, x, y in zip(pts_im, pts_x, pts_y):
+    for im, cls, x, y in zip(pts_im, pts_cls, pts_x, pts_y):
         # position of point [0-1] (midpoint of pixel)
-        cls = classes[im, x, y]
+        # cls = classes[im, x, y]
+        
         pos_x = (x.float() * 2 + 1) / (classes.shape[1] * 2)
         pos_y = (y.float() * 2 + 1) / (classes.shape[2] * 2)
         #pos_x = x.float() / classes.shape[1]
         #pos_y = y.float() / classes.shape[2]
         
         # offset from midpoint of this pixel on feature map
-        reg = pts_reg_map[im, :, x, y]
+        reg = pts_reg_map[im, cls, :, x, y]
         pos_x += reg[0] / classes.shape[1]
         pos_y += reg[1] / classes.shape[1]
         
